@@ -7,6 +7,11 @@ import sqlite3
 PROJECT_DIR = Path(__file__).resolve().parent
 DATABASE_PATH = PROJECT_DIR / "data" / "dashboard.db"
 DATA_TABLES = ("blanks", "welding_needs", "documentation")
+EDITABLE_COLUMNS = {
+    "blanks": ("record_id", "date", "batch_id", "employee", "plan_qty", "fact_qty"),
+    "welding_needs": ("record_id", "date", "batch_id", "need_qty"),
+    "documentation": ("record_id", "date", "employee", "plan_docs", "fact_docs"),
+}
 
 
 def get_connection() -> sqlite3.Connection:
@@ -91,3 +96,18 @@ def get_records(table: str) -> list[dict]:
             f"SELECT * FROM {table} ORDER BY date, id"
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def replace_records(table: str, records: list[dict]) -> None:
+    """Сохраняет изменения одного участка, не затрагивая другие таблицы."""
+    if table not in DATA_TABLES:
+        raise ValueError(f"Неизвестная таблица: {table}")
+    columns = EDITABLE_COLUMNS[table]
+    rows = [tuple(record.get(column) for column in columns) for record in records]
+    placeholders = ", ".join("?" for _ in columns)
+    with get_connection() as connection:
+        connection.execute(f"DELETE FROM {table}")
+        connection.executemany(
+            f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})",
+            rows,
+        )

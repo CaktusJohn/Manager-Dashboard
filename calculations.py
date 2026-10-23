@@ -1,6 +1,7 @@
 """Проверки качества данных и расчёт показателей."""
 
 from collections import Counter, defaultdict
+from datetime import date
 from typing import Any
 
 
@@ -17,11 +18,23 @@ def _duplicate_ids(records: list[dict]) -> set[str]:
     return {record_id for record_id, count in Counter(ids).items() if count > 1}
 
 
+def _is_iso_date(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    try:
+        date.fromisoformat(value)
+        return True
+    except ValueError:
+        return False
+
+
 def _base_issues(record: dict, duplicate_ids: set[str], required_fields: tuple[str, ...]) -> list[str]:
     issues = []
     for field in required_fields:
         if record.get(field) in (None, ""):
             issues.append(f"Не заполнено поле «{field}»")
+    if record.get("date") not in (None, "") and not _is_iso_date(record["date"]):
+        issues.append("Дата должна быть в формате ГГГГ-ММ-ДД")
     if record.get("record_id") in duplicate_ids:
         issues.append("Повторяющийся record_id")
     return issues
