@@ -6,6 +6,7 @@ import sqlite3
 
 PROJECT_DIR = Path(__file__).resolve().parent
 DATABASE_PATH = PROJECT_DIR / "data" / "dashboard.db"
+DATA_TABLES = ("blanks", "welding_needs", "documentation")
 
 
 def get_connection() -> sqlite3.Connection:
@@ -64,3 +65,29 @@ def initialize_database() -> None:
             """
         )
 
+
+def get_meta(key: str) -> str | None:
+    with get_connection() as connection:
+        row = connection.execute(
+            "SELECT value FROM app_meta WHERE key = ?", (key,)
+        ).fetchone()
+    return row["value"] if row else None
+
+
+def set_meta(key: str, value: str) -> None:
+    with get_connection() as connection:
+        connection.execute(
+            "INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)",
+            (key, value),
+        )
+
+
+def get_records(table: str) -> list[dict]:
+    """Возвращает записи участка в порядке даты и идентификатора."""
+    if table not in DATA_TABLES:
+        raise ValueError(f"Неизвестная таблица: {table}")
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"SELECT * FROM {table} ORDER BY date, id"
+        ).fetchall()
+    return [dict(row) for row in rows]
